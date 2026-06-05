@@ -1,0 +1,80 @@
+List File,E01_20190815_4x_01.lst
+Start Time,2019-08-15  12:27:45
+Sampling Time,5 min 0 sec
+
+Count,3257
+Particles / ml,1382
+
+Sample Volume Processed ml,4.5
+Sample Volume Imaged ml,2.356
+
+Efficiency,52.4%
+PPI,1.84
+
+Summary Stats,Mean,Min,Max,StdDev,% CV
+Area (ABD),2981.43,316.37,81781.83,4816.13,161.54
+Area (Filled),3106.50,316.37,1.177e+05,5698.42,183.44
+Aspect Ratio,0.54,0.01,1.00,0.32,58.57
+Capture X,576.45,184.00,999.00,233.27,40.47
+Capture Y,936.75,0.00,1898.00,549.36,58.65
+Ch1 Area,0.00,0.00,0.00,0.00,0.00
+Ch1 Peak,0.00,0.00,0.00,0.00,0.00
+Ch1 Width,0.00,0.00,0.00,0.00,0.00
+Ch2 Area,0.00,0.00,0.00,0.00,0.00
+Ch2 Peak,0.00,0.00,0.00,0.00,0.00
+Ch2 Width,0.00,0.00,0.00,0.00,0.00
+Ch2/Ch1 Ratio,0.00,0.00,0.00,0.00,0.00
+Circle Fit,0.41,0.00,0.96,0.34,84.07
+Circularity,0.44,0.01,1.00,0.34,75.90
+Circularity (Hu),0.58,0.01,1.00,0.36,62.15
+Compactness,7.85,1.00,118.35,11.18,142.47
+Convex Perimeter,430.47,78.37,5332.73,584.91,135.88
+Convexity,0.79,0.05,1.00,0.26,33.21
+D[3 2](ABD),103.71,20.07,322.69,54.28,52.34
+D[3 2](ESD),660.51,21.14,1693.83,354.18,53.62
+D[4 3](ABD),132.12,20.07,322.69,58.20,44.05
+D[4 3](ESD),850.43,21.14,1693.83,373.72,43.94
+Diameter (ABD),51.05,20.07,322.69,34.49,67.55
+Diameter (ESD),133.23,21.14,1693.83,186.18,139.75
+Diameter (FD),51.81,20.07,387.13,35.65,68.79
+Edge Gradient,52.67,5.78,205.67,40.71,77.30
+Elapsed Time,146.53,1.84,301.86,86.72,59.18
+Elongation,22.39,1.00,369.81,35.27,157.54
+Fiber Curl,0.43,0.00,5.62,0.65,149.79
+Fiber Straightness,0.83,0.15,1.41,0.27,32.70
+Geodesic Aspect Ratio,0.38,0.00,1.00,0.40,105.58
+Geodesic Length,257.96,22.51,4804.38,372.78,144.51
+Geodesic Thickness,20.79,3.27,94.40,12.01,57.75
+Image Height,106.96,13.00,1459.00,154.49,144.44
+Image Width,43.10,8.00,444.00,47.83,110.99
+Intensity,130.70,48.11,159.53,17.78,13.60
+Length,189.99,22.87,2655.23,287.38,151.26
+Particles Per Chain,1.26,1.00,30.00,1.12,88.77
+Perimeter,557.50,90.03,9646.92,737.49,132.29
+Roughness,1.32,0.92,4.75,0.36,27.03
+Scatter Area,0.00,0.00,0.00,0.00,0.00
+Scatter Peak,0.00,0.00,0.00,0.00,0.00
+Scatter Width,0.00,0.00,0.00,0.00,0.00
+Sigma Intensity,19.72,1.22,53.85,11.04,55.96
+Sphere Complement,0.00,0.00,0.00,0.00,0.00
+Sphere Count,0.00,0.00,0.00,0.00,0.00
+Sphere Unknown,0.00,0.00,0.00,0.00,0.00
+Sphere Volume,0.00,0.00,0.00,0.00,0.00
+Sum Intensity,1.428e+05,14632.00,3.507e+06,2.012e+05,140.89
+Symmetry,0.54,0.00,0.99,0.26,47.03
+Transparency,0.35,0.02,0.88,0.26,75.10
+Volume (ABD),2.061e+05,4233.10,1.759e+07,6.068e+05,294.36
+Volume (ESD),1.813e+07,4945.68,2.545e+09,9.581e+07,528.53
+Width,45.57,3.66,674.10,56.25,123.45
+
+Filter,Count,Count %,Volume %,P/ML,PPM
+
+Particle Segmentation,Dark Threshold 5.00
+Distance to Nearest Neighbor,10 microns
+Close Holes,No
+Basic Size Filter,Diameter (ABD) Min 20.00  Max 10000.00  microns
+Advanced Filter,None
+AutoImage Frame Rate,6 frames per second
+Flash Duration,600.00 microseconds
+Camera Gain,0
+

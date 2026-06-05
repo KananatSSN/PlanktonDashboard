@@ -1,0 +1,39 @@
+Run:
+	Mode:  AutoImage
+	Priming Method:  manual prime with sample
+	Flow Rate:  0.900 ml/min
+	Recalibrations:  0
+	Stop Reason:  Run Time
+	Sample Volume Aspirated: 4.5244 ml
+	Sample Volume Processed: 4.4996 ml
+	Fluid Volume Imaged: 2.3560 ml
+	Efficiency: 52.4%   
+	Particle Count: 3257
+
+Images:
+	Total:  1766
+	Used:  1490
+	Percentage Used:  84.37%
+	Particles Per Used Image:  2.19
+	Particles Per Image:  1.84
+	Particles Per Image:  1.84
+	Frame Rate:  5.88 fps
+	Intensity Mean:  163.65
+	Intensity Min:  157.92
+	Intensity Max:  164.87
+
+Date/Time:
+	Start:  2019-08-15 12:27:45
+	End:  2019-08-15 12:32:53
+	Sampling Time:  00:05:00
+
+Environment:
+	Software: VisualSpreadsheet 4.15.1
+	Magnification: 4X
+	Calibration Factor: 1.8293
+	GumStix Firmware: 23
+	Calibration Factor: 1.8293
+	SerialNo:  10436
+	Number of Processors: 8
+	Pump:  C80 Syringe
+	Syringe Size:  5.00 ml

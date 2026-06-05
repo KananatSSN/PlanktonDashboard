@@ -1,0 +1,102 @@
+{
+    "Preprocessing": {
+        "SizeThreshold": {
+            "size_threshold_active": true,
+            "size_threshold_threshold_variable": "AbdDiameter",
+            "size_threshold_lower_bound": 20,
+            "size_threshold_upper_bound": Infinity
+        },
+        "BiovolAndSurfaceAreaCalculator": {
+            "biovol_and_surface_area_calculator_active": true
+        }
+    },
+    "Classification": {
+        "ObjectClassification": {
+            "settings": {
+                "object_classification_active": true
+            },
+            "model": {
+                "Name": "Connect_retrain",
+                "Version": "10",
+                "Framework": "TensorFlow",
+                "Class_names": [
+                    "BacAstfor_3192686",
+                    "BacCen000_3192255",
+                    "BacFracro_3192403",
+                    "BacSyn000_3192703",
+                    "ChlCoe000_0000000",
+                    "ChlPanmor_5271376",
+                    "ChlPanmor_5271376_colonies",
+                    "Chlcolony_0000000",
+                    "ChrDin000_3194946",
+                    "ConSta000_2647648",
+                    "CyaAphflo_7690242",
+                    "CyaChr000_3216094",
+                    "CyaCoe000_3217114",
+                    "CyaDolcir_7427230",
+                    "CyaDolpla_8309180",
+                    "CyaLim000_0000000",
+                    "CyaMer000_0000000",
+                    "CyaMic000_3217749",
+                    "CyaPlarub_3218379",
+                    "Detritus",
+                    "DinCerhir_7598904",
+                    "DinPer000_7536081",
+                    "Mesozoo",
+                    "OliCod000_8145317",
+                    "OliHal000_7620672",
+                    "OliLim000_7982796",
+                    "OliPel000_7369220",
+                    "ProCol000_7479200",
+                    "Rotifera",
+                    "TreOoc000_2641454",
+                    "ZygClo000_2646356",
+                    "ZygMou000_0000000"
+                ],
+                "Input_shape": [
+                    224,
+                    224,
+                    3
+                ],
+                "Features": [
+                    "AbdArea",
+                    "AbdDiameter",
+                    "AbdVolume",
+                    "AspectRatio",
+                    "AvgBlue",
+                    "AvgGreen",
+                    "AvgRed",
+                    "CircleFit",
+                    "Circularity",
+                    "CircularityHu",
+                    "Compactness",
+                    "Convexity",
+                    "ConvexPerimeter",
+                    "EdgeGradient",
+                    "Elongation",
+                    "EsdDiameter",
+                    "EsdVolume",
+                    "FdDiameter",
+                    "FeretMaxAngle",
+                    "FeretMinAngle",
+                    "FiberCurl",
+                    "FiberStraightness",
+                    "FilledArea",
+                    "GeodesicAspectRatio",
+                    "GeodesicLength",
+                    "GeodesicThickness",
+                    "Intensity",
+                    "Length",
+                    "Ppc",
+                    "Perimeter",
+                    "Roughness",
+                    "SigmaIntensity",
+                    "SumIntensity",
+                    "Symmetry",
+                    "Transparency",
+                    "Width"
+                ]
+            }
+        }
+    }
+}
