@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plankton Annotator</title>
+  <script src="/static/htmx.min.js"></script>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <h2>Plankton Annotator</h2>
+  <nav id="tabnav" class="tabs">{% include '_navbtns.html' %}</nav>
+  <div id="main">{% include '_annotate_body.html' %}</div>
+
+  <div id="tip"></div>
+  <script>
+    // Instant styled tooltip for any element carrying data-tip (grid tiles).
+    // Event delegation, so it also works for tiles HTMX swaps in dynamically.
+    (function () {
+      var tip = document.getElementById('tip');
+      function place(e) {
+        var pad = 14, r = tip.getBoundingClientRect();
+        var x = e.clientX + pad, y = e.clientY + pad;
+        if (x + r.width > window.innerWidth) x = e.clientX - r.width - pad;
+        if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+        tip.style.left = x + 'px';
+        tip.style.top = Math.max(4, y) + 'px';
+      }
+      document.addEventListener('mousemove', function (e) {
+        var el = e.target.closest && e.target.closest('[data-tip]');
+        if (el) {
+          var t = el.getAttribute('data-tip');
+          if (tip.textContent !== t) tip.textContent = t;
+          tip.style.display = 'block';
+          place(e);
+        } else if (tip.style.display === 'block') {
+          tip.style.display = 'none';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+:root { --bg:#f5f5f5; --card:#fff; --line:#ddd; --ink:#222; --muted:#666; }
+* { box-sizing: border-box; }
+body {
+  font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--ink);
+  margin: 0; padding: 16px;
+}
+h2 { margin: 0 0 8px; }
+.hint { font-size: 13px; color: var(--muted); margin: 0 0 14px; max-width: 760px; }
+.muted { font-size: 12px; color: var(--muted); margin: 4px 0; }
+
+.controls {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+  background: var(--card); padding: 12px 14px; border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15); margin-bottom: 10px;
+}
+.controls label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: bold; }
+.controls select, .controls input {
+  font-size: 13px; padding: 5px 6px; border: 1px solid #aaa; border-radius: 4px; font-weight: normal;
+}
+.controls input[type=number] { width: 70px; }
+
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.buttons button {
+  font-size: 13px; padding: 8px 14px; cursor: pointer; border-radius: 6px;
+  border: 1px solid #888; background: #e8f0fe;
+}
+.buttons button.alt { background: #eef7ee; }
+.buttons button:hover { filter: brightness(0.97); }
+
+#train.busy { color: #b26a00; font-weight: bold; }
+
+#grid-wrap { margin-top: 10px; }
+
+/* Tiles are sized from the viewport so the whole m x n grid fits on screen:
+   tile = min(width-fit, height-fit, 240px). --n/--m are set inline per grid,
+   --chrome is roughly the height of everything above the grid. */
+#grid {
+  --gap: 6px;
+  --chrome: 330px;
+  --availw: calc(100vw - 40px);
+  --availh: calc(100vh - var(--chrome));
+  --tile: min(
+    calc((var(--availw) - (var(--n, 3) - 1) * var(--gap)) / var(--n, 3)),
+    calc((var(--availh) - (var(--m, 3) - 1) * var(--gap)) / var(--m, 3)),
+    240px
+  );
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(var(--n, 3), var(--tile));
+  grid-template-rows: repeat(var(--m, 3), var(--tile));
+  justify-content: start;
+}
+
+.tile {
+  position: relative; padding: 0; cursor: pointer; border: 3px solid transparent;
+  border-radius: 6px; overflow: hidden; background: #222; min-width: 0; min-height: 0;
+  display: flex; align-items: center; justify-content: center; transition: border-color .1s;
+}
+.tile:hover { border-color: #e53935; }
+.tile img { max-width: 100%; max-height: 100%; image-rendering: pixelated; display: block; }
+.tile.empty { cursor: default; background: #efefef; border-color: var(--line); }
+.tile.empty:hover { border-color: var(--line); }
+.tile .ph { font-size: 12px; color: #999; }
+
+/* brief fade-in as a replacement tile is swapped in by htmx */
+.tile.htmx-added img { animation: fade .25s ease-in; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* instant hover tooltip (predicted probabilities) — follows the cursor,
+   rendered on <body> so the tile's overflow:hidden can't clip it */
+#tip {
+  position: fixed; z-index: 1000; display: none; pointer-events: none;
+  background: rgba(20,20,20,.92); color: #fff; padding: 6px 9px; border-radius: 6px;
+  font: 11px/1.45 "Consolas", monospace; white-space: pre-line; max-width: 280px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+
+/* "Actual size" toggle: show crops at native pixels and scroll instead of
+   shrinking everything to fit the viewport. */
+.gridbar { display: flex; align-items: center; gap: 6px; font-size: 12px;
+  color: var(--muted); margin: 4px 0 2px; }
+body:has(#actual-size:checked) #grid {
+  grid-template-columns: none; grid-template-rows: none;
+  display: flex; flex-wrap: wrap;
+}
+body:has(#actual-size:checked) #grid-wrap {
+  max-height: calc(100vh - 340px); overflow: auto;
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff;
+}
+body:has(#actual-size:checked) .tile { width: auto; height: auto; }
+body:has(#actual-size:checked) .tile img { max-width: none; max-height: none; }
+body:has(#actual-size:checked) .tile.empty { width: 60px; height: 60px; }
+
+/* ── tabs ─────────────────────────────────────────────────────────────────── */
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin: 0 0 14px; }
+.tabs .tab {
+  font-size: 13px; padding: 8px 16px; cursor: pointer; border: none; background: none;
+  color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.tabs .tab:hover { color: var(--ink); }
+.tabs .tab.active { color: var(--ink); font-weight: bold; border-bottom-color: #1a73e8; }
+
+h3 { margin: 4px 0 10px; }
+h4 { margin: 22px 0 8px; }
+
+/* ── stat cards ───────────────────────────────────────────────────────────── */
+.cards { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.card {
+  background: var(--card); border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  padding: 10px 16px; min-width: 96px; text-align: center; font-size: 12px; color: var(--muted);
+}
+.card .big { font-size: 22px; font-weight: bold; color: var(--ink); }
+
+/* ── health tables ────────────────────────────────────────────────────────── */
+table.health { border-collapse: collapse; background: var(--card); width: 100%; max-width: 760px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12); border-radius: 8px; overflow: hidden; font-size: 13px; }
+table.health th, table.health td { padding: 6px 10px; border-bottom: 1px solid #eee; text-align: left; }
+table.health thead th { background: #fafafa; font-size: 12px; color: var(--muted); }
+table.health td.num, table.health th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.health td.cls { font-family: monospace; font-size: 12px; }
+.bar { height: 10px; background: #1a73e8; border-radius: 3px; min-width: 1px; }
+.bar.bad { background: #e53935; }
+
+/* ── confusion matrix ─────────────────────────────────────────────────────── */
+.confwrap { overflow-x: auto; max-width: 100%; }
+table.conf { border-collapse: collapse; font-size: 11px; background: var(--card); }
+table.conf th, table.conf td { border: 1px solid #eee; padding: 3px 6px; text-align: center; }
+table.conf th.cls { font-family: monospace; text-align: right; white-space: nowrap; }
+table.conf td.num { font-variant-numeric: tabular-nums; }
+table.conf td.diag { background: #d7ecd9; font-weight: bold; }
+table.conf td.off { background: #fde0e0; }
+table.conf th.rot { height: 90px; white-space: nowrap; }
+table.conf th.rot > span { display: inline-block; transform: rotate(180deg); writing-mode: vertical-rl;
+  font-family: monospace; font-weight: normal; }
+
+/* ── embedded Dash dashboard ──────────────────────────────────────────────── */
+.dash-frame { width: 100%; height: calc(100vh - 140px); border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; }

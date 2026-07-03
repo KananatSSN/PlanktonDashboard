@@ -1,0 +1,58 @@
+{% macro pct(v) %}{% if v is none %}—{% else %}{{ (100 * v) | round(1) }}%{% endif %}{% endmacro %}
+<h3>Model Health <span class="muted">— per class vs human labels (LC_Label)</span></h3>
+
+{% if health.training %}
+  <p class="hint">⏳ Training in progress — reopen this tab when it finishes.</p>
+{% elif not health.n %}
+  {% if health.total %}
+    <p class="hint">{{ health.total }} labelled rows, but their crops could not be loaded.</p>
+  {% else %}
+    <p class="hint">No human labels yet. Click positives in the <b>Annotate</b> tab, then come back.</p>
+  {% endif %}
+{% else %}
+  <div class="cards">
+    <div class="card"><div class="big">{{ pct(health.accuracy) }}</div><div>accuracy</div></div>
+    <div class="card"><div class="big">{{ pct(health.macro_f1) }}</div><div>macro F1</div></div>
+    <div class="card"><div class="big">{{ health.n }}</div><div>evaluated</div></div>
+  </div>
+  {% if health.sampled %}<p class="hint">Showing a random sample of {{ health.n }} of {{ health.total }} labelled crops.</p>{% endif %}
+
+  <table class="health">
+    <thead><tr>
+      <th>Class</th><th class="num">support</th>
+      <th class="num">precision</th><th class="num">recall</th><th class="num">F1</th>
+      <th>F1</th>
+    </tr></thead>
+    <tbody>
+    {% for r in health.per_class %}
+      <tr>
+        <td class="cls">{{ r.cls }}</td>
+        <td class="num">{{ r.support }}</td>
+        <td class="num">{{ pct(r.precision) }}</td>
+        <td class="num">{{ pct(r.recall) }}</td>
+        <td class="num">{{ pct(r.f1) }}</td>
+        <td><div class="bar{% if r.f1 is not none and r.f1 < 0.5 %} bad{% endif %}"
+                 style="width: {{ (100 * r.f1) | round(1) if r.f1 is not none else 0 }}%"></div></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h4>Confusion matrix <span class="muted">(rows = true LC_Label, cols = predicted)</span></h4>
+  <div class="confwrap">
+    <table class="conf">
+      <thead><tr><th></th>{% for c in health.present %}<th class="rot"><span>{{ c }}</span></th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for t in health.present %}
+        <tr>
+          <th class="cls">{{ t }}</th>
+          {% for p in health.present %}
+            {% set v = health.confusion.get(t, {}).get(p, 0) %}
+            <td class="num{% if t == p %} diag{% elif v %} off{% endif %}">{{ v or '' }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}

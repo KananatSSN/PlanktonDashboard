@@ -1,0 +1,5 @@
+<div id="train" class="muted{% if train.running %} busy{% endif %}"
+     {% if train.running %}hx-get="/train-status" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
+  {% if train.running %}⏳ {% endif %}{{ train.msg }}
+</div>
+<div id="model-status" class="muted" hx-swap-oob="true">{{ model_status }}</div>

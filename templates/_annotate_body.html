@@ -1,0 +1,42 @@
+<p class="hint">
+  Click any image that contains the target class — it is labelled and instantly
+  replaced. Press <b>Regenerate</b> when none of the shown images are the target.
+</p>
+
+<form id="controls" class="controls">
+  <label>Dataset
+    <select name="dataset" hx-post="/dataset" hx-target="#target"
+            hx-swap="innerHTML" hx-trigger="change">
+      {% for d in datasets %}
+        <option value="{{ d.value }}" {% if d.value == csv_path %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Target class (x)
+    <select id="target" name="target">{% include '_targets.html' %}</select>
+  </label>
+  <label>Rows (m) <input type="number" name="rows" min="1" max="8" value="{{ m }}"></label>
+  <label>Cols (n) <input type="number" name="cols" min="1" max="8" value="{{ n }}"></label>
+  <label>Remove if P(x) ≥
+    <input type="number" name="threshold" min="0" max="1" step="0.05" value="{{ threshold }}">
+  </label>
+  <label>Skip if max P(any) ≥
+    <input type="number" name="conf_skip" min="0" max="1" step="0.01" value="{{ conf_skip }}">
+  </label>
+</form>
+
+<div class="buttons">
+  <button hx-post="/build" hx-include="#controls" hx-target="#grid-wrap" hx-swap="innerHTML">New grid</button>
+  <button hx-post="/regenerate" hx-include="#controls" hx-target="#grid-wrap" hx-swap="innerHTML">Regenerate (none are target)</button>
+  <button class="alt" hx-post="/update-model" hx-target="#train" hx-swap="outerHTML">Update Model</button>
+  <button class="alt" hx-post="/train-base" hx-target="#train" hx-swap="outerHTML">Train Base Model</button>
+  <button class="alt" hx-post="/save" hx-target="#savestatus" hx-swap="innerHTML">Save labels</button>
+  <span id="savestatus" class="muted"></span>
+</div>
+
+<div id="model-status" class="muted">{{ model_status }}</div>
+<div id="grid-status" class="muted">{{ status }}</div>
+<div id="train" class="muted">{{ train.msg }}</div>
+
+<label class="gridbar"><input type="checkbox" id="actual-size"> Actual size (native pixels, scroll)</label>
+<div id="grid-wrap">{% include '_grid.html' %}</div>

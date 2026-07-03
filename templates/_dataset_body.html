@@ -1,0 +1,36 @@
+<h3>Dataset Health</h3>
+{% set s = health.summary %}
+<div class="cards">
+  <div class="card"><div class="big">{{ s.total }}</div><div>images</div></div>
+  <div class="card"><div class="big">{{ s.classes }}</div><div>classes</div></div>
+  <div class="card"><div class="big">{{ s.labelled }}</div><div>labelled (+x)</div></div>
+  <div class="card"><div class="big">{{ s.reverse }}</div><div>reverse-one-hot</div></div>
+  <div class="card"><div class="big">{{ s.seen }}</div><div>seen</div></div>
+  <div class="card"><div class="big">{{ s.untouched }}</div><div>untouched</div></div>
+</div>
+
+<p class="hint">
+  <b>pred</b> = original LabelPredicted count · <b>+x</b> = human positives ·
+  <b>ruled out</b> = times marked not-this-class · <b>pool</b> = still eligible to be shown.
+</p>
+
+<table class="health">
+  <thead><tr>
+    <th>Class</th><th class="num">pred</th><th class="num">share</th>
+    <th class="num">+x</th><th class="num">ruled out</th><th class="num">pool</th>
+    <th>distribution</th>
+  </tr></thead>
+  <tbody>
+  {% for r in health.per_class %}
+    <tr>
+      <td class="cls">{{ r.cls }}</td>
+      <td class="num">{{ r.pred }}</td>
+      <td class="num">{{ (100 * r.pred / s.total) | round(1) }}%</td>
+      <td class="num">{{ r.pos }}</td>
+      <td class="num">{{ r.ruled_out }}</td>
+      <td class="num">{{ r.pool }}</td>
+      <td><div class="bar" style="width: {{ (100 * r.pred / health.per_class[0].pred) | round(1) if health.per_class[0].pred else 0 }}%"></div></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>

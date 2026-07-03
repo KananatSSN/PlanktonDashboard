@@ -1,0 +1,6 @@
+<button class="tile{% if not cell.src %} empty{% endif %}" id="cell-{{ cell.i }}"
+        {% if cell.tip %}data-tip="{{ cell.tip }}"{% endif %}
+        {% if cell.src %}hx-post="/click" hx-vals='{"cell": {{ cell.i }}}' hx-target="this" hx-swap="outerHTML"{% endif %}>
+  {% if cell.src %}<img src="{{ cell.src }}" alt="row {{ cell.row }}">
+  {% else %}<span class="ph">— empty —</span>{% endif %}
+</button>

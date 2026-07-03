@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 from pathlib import Path
 
 import dash
@@ -219,7 +220,14 @@ def gen_bin_image(image: np.ndarray) -> np.ndarray:
 
 # ── app layout ───────────────────────────────────────────────────────────────
 
-app = dash.Dash(__name__)
+# When mounted under the FastAPI annotation app (annotate_server.py), the env var
+# tells Dash to request its assets/callbacks under that path prefix (e.g.
+# "/dashboard/"). Unset when run standalone, so the dashboard still works on 8050.
+_dash_prefix = os.environ.get("DASH_URL_PREFIX")
+app = dash.Dash(
+    __name__,
+    **({"requests_pathname_prefix": _dash_prefix} if _dash_prefix else {}),
+)
 app.title = "Plankton Dashboard"
 
 csv_files = find_csv_files()

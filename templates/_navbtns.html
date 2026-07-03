@@ -1,0 +1,8 @@
+<button class="tab{% if active == 'annotate' %} active{% endif %}"
+        hx-get="/tab/annotate" hx-target="#main" hx-swap="innerHTML">Annotate</button>
+<button class="tab{% if active == 'dataset' %} active{% endif %}"
+        hx-get="/tab/dataset" hx-target="#main" hx-swap="innerHTML">Dataset Health</button>
+<button class="tab{% if active == 'model' %} active{% endif %}"
+        hx-get="/tab/model" hx-target="#main" hx-swap="innerHTML">Model Health</button>
+<button class="tab{% if active == 'dashboard' %} active{% endif %}"
+        hx-get="/tab/dashboard" hx-target="#main" hx-swap="innerHTML">Dashboard</button>
