@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp annotate.db.bak annotate.db)",
+      "Bash(KMP_DUPLICATE_LIB_OK=TRUE C:/Users/acer/anaconda3/envs/3dmodel/python.exe -c ' *)",
+      "Bash(rm -f annotate_embed.py annotate_cluster.py)",
+      "Bash(rm -f data/E01_20190815_4x_01/dinov2_vits14.npy data/E01_20190815_4x_01/dinov2_vits14.keys.txt)",
+      "Bash(rm -f models/annotate_embedhead.pt models/distill_*.pt)",
+      "Bash(rm -f templates/_tab_discover.html templates/_discover_body.html templates/_discover_results.html templates/_discover_modeb.html templates/_distill.html)",
+      "Bash(rm -f models/model_mobilenet_v3_small.pt models/annotate_mobilenetv3.pt)",
+      "Bash(printf \"annotate_settings.json\\\\n\")",
+      "Bash(rm -f annotate.db.bak annotate.db-wal annotate.db-shm models/model_*.pt annotate_settings.json)",
+      "Bash(KMP_DUPLICATE_LIB_OK=TRUE \"C:/Users/acer/anaconda3/envs/3dmodel/python.exe\" -c \"import annotate_db as db; c=db.connect\\(\\); r=c.execute\\(\\\\\"SELECT SUM\\(label!=''\\) p, SUM\\(excluded!=''\\) e, SUM\\(seen\\) s FROM images\\\\\"\\).fetchone\\(\\); print\\('DB:', dict\\(labelled=r['p'] or 0, excluded=r['e'], seen=r['s']\\)\\); c.close\\(\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 C:/Users/acer/anaconda3/envs/3dmodel/python.exe -c ' *)",
+      "Bash(rm -f annotate.db annotate.db-wal annotate.db-shm annotate_settings.json models/model_*.pt)",
+      "Bash(KMP_DUPLICATE_LIB_OK=TRUE \"C:/Users/acer/anaconda3/envs/3dmodel/python.exe\" annotate_db.py sync)",
+      "Bash(rm -f annotate.db-wal annotate.db-shm)",
+      "Bash(netstat -ano)"
+    ]
+  }
+}

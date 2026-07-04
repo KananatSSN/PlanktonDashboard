@@ -3,3 +3,8 @@ __pycache__/
 models/
 *.csv.tmp
 .vscode/
+annotate.db*
+*.npy
+*.keys.txt
+data.zip
+annotate_settings.json

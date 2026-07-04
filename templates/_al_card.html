@@ -1,0 +1,44 @@
+{% if not al or not al.total %}
+  <div class="muted">{{ (al.status if al else '') or 'Press Build queue to start.' }}</div>
+{% elif al.done %}
+  <div class="al-done">
+    ✓ {{ al.status }}
+    <div class="muted">Labelled {{ al.labelled }} of {{ al.total }} this round.</div>
+  </div>
+{% else %}
+  <div class="al-progress muted">
+    Item {{ al.pos }} / {{ al.total }} · labelled {{ al.labelled }} this round
+  </div>
+  <div class="al-item">
+    <div class="al-img">
+      {% if al.src %}<img src="{{ al.src }}" alt="id {{ al.image_id }}">
+      {% else %}<span class="ph">— image unavailable —</span>{% endif %}
+    </div>
+    <div class="al-side">
+      <div class="muted">Original label: {{ al.predicted or '—' }}</div>
+      <table class="al-top">
+        {% for t in al.top %}
+        <tr><td>{{ t.cls }}</td><td class="num">{{ '%.3f'|format(t.p) }}</td></tr>
+        {% endfor %}
+      </table>
+      <form id="al-form" class="al-controls">
+        <label>Assign class
+          <select name="class_name">
+            {% for t in targets %}
+            <option value="{{ t }}"{% if t == al.top[0].cls %} selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button hx-post="/al/assign" hx-include="#al-form"
+                hx-target="#al-card" hx-swap="innerHTML">Assign</button>
+        <label>New class
+          <input type="text" name="new_class" placeholder="name…">
+        </label>
+        <button class="alt" hx-post="/al/new" hx-include="#al-form"
+                hx-target="#al-card" hx-swap="innerHTML">Create &amp; assign</button>
+        <button class="alt" hx-post="/al/skip"
+                hx-target="#al-card" hx-swap="innerHTML">Skip</button>
+      </form>
+    </div>
+  </div>
+{% endif %}

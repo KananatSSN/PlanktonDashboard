@@ -1,6 +1,17 @@
+<div class="model-explain">
+  <b>What the model does:</b> it looks at each crop and predicts which of the
+  {{ targets|length }} classes it is. You train it on the labels you record; it
+  then ranks the unlabelled pool so the grid shows the most useful crops, and it
+  retrains in the background as you keep labelling.
+</div>
+
 <p class="hint">
-  Click any image that contains the target class — it is labelled and instantly
-  replaced. Press <b>Regenerate</b> when none of the shown images are the target.
+  <b>Review (accept)</b> shows crops the model is <i>most confident</i>
+  <b>ARE</b> the target class. Assume they're all correct —
+  <b>click only the ones that are NOT the target</b> to reject them, then press
+  <b>Accept all shown</b> to label the rest.<br>
+  <b>Hard-case (find)</b> shows crops the model is <i>least confident</i> about —
+  <b>click the ones that ARE the target</b> to label them.
 </p>
 
 <form id="controls" class="controls">
@@ -8,28 +19,32 @@
     <select name="dataset" hx-post="/dataset" hx-target="#target"
             hx-swap="innerHTML" hx-trigger="change">
       {% for d in datasets %}
-        <option value="{{ d.value }}" {% if d.value == csv_path %}selected{% endif %}>{{ d.label }}</option>
+        <option value="{{ d.value }}" {% if d.value == dataset_id %}selected{% endif %}>{{ d.label }}</option>
       {% endfor %}
     </select>
   </label>
   <label>Target class (x)
     <select id="target" name="target">{% include '_targets.html' %}</select>
   </label>
-  <label>Rows (m) <input type="number" name="rows" min="1" max="8" value="{{ m }}"></label>
-  <label>Cols (n) <input type="number" name="cols" min="1" max="8" value="{{ n }}"></label>
-  <label>Remove if P(x) ≥
-    <input type="number" name="threshold" min="0" max="1" step="0.05" value="{{ threshold }}">
+  <label>Mode
+    <select name="mode">
+      <option value="review" {% if mode == 'review' %}selected{% endif %}>Review — click the NOT-target ones</option>
+      <option value="hardcase" {% if mode == 'hardcase' %}selected{% endif %}>Hard-case — click the target ones</option>
+    </select>
   </label>
-  <label>Skip if max P(any) ≥
+  <label>Rows (m) <input type="number" name="rows" min="1" max="{{ grid_max }}" value="{{ m }}"></label>
+  <label>Cols (n) <input type="number" name="cols" min="1" max="{{ grid_max }}" value="{{ n }}"></label>
+  <label>Trust the model when P(any) ≥
     <input type="number" name="conf_skip" min="0" max="1" step="0.01" value="{{ conf_skip }}">
   </label>
 </form>
 
 <div class="buttons">
   <button hx-post="/build" hx-include="#controls" hx-target="#grid-wrap" hx-swap="innerHTML">New grid</button>
-  <button hx-post="/regenerate" hx-include="#controls" hx-target="#grid-wrap" hx-swap="innerHTML">Regenerate (none are target)</button>
-  <button class="alt" hx-post="/update-model" hx-target="#train" hx-swap="outerHTML">Update Model</button>
+  <button class="primary" hx-post="/accept-all" hx-target="#grid-wrap" hx-swap="innerHTML">Accept all shown</button>
+  <button hx-post="/reject-all" hx-target="#grid-wrap" hx-swap="innerHTML">Reject all shown</button>
   <button class="alt" hx-post="/train-base" hx-target="#train" hx-swap="outerHTML">Train Base Model</button>
+  <button class="alt" hx-post="/retrain" hx-target="#train" hx-swap="outerHTML">Retrain</button>
   <button class="alt" hx-post="/save" hx-target="#savestatus" hx-swap="innerHTML">Save labels</button>
   <span id="savestatus" class="muted"></span>
 </div>

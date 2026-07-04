@@ -1,0 +1,33 @@
+<p class="hint">
+  Controls how the model trains and how the grids behave. Training runs in the
+  background while you keep annotating; the new model is swapped in when ready.
+  Changing the backbone or input size resets the model — press
+  <b>Train Base Model</b> afterwards. Saved to <code>annotate_settings.json</code>.
+</p>
+
+{% if settings_msg %}<div class="muted">{{ settings_msg }}</div>{% endif %}
+
+<form id="settings-form" class="settings-grid">
+  {% for name, kind, label in fields %}
+  <label class="setting">
+    <span>{{ label }}</span>
+    {% if kind == 'select' %}
+      <select name="{{ name }}">
+        {% for b in backbones %}
+        <option value="{{ b }}" {% if b == settings[name] %}selected{% endif %}>{{ b }}</option>
+        {% endfor %}
+      </select>
+    {% elif kind == 'bool' %}
+      <input type="checkbox" name="{{ name }}" {% if settings[name] %}checked{% endif %}>
+    {% elif kind == 'float' %}
+      <input type="number" name="{{ name }}" step="any" value="{{ settings[name] }}">
+    {% else %}
+      <input type="number" name="{{ name }}" step="1" value="{{ settings[name] }}">
+    {% endif %}
+  </label>
+  {% endfor %}
+  <div class="settings-actions">
+    <button hx-post="/settings/save" hx-include="#settings-form"
+            hx-target="#settings-wrap" hx-swap="innerHTML">Save settings</button>
+  </div>
+</form>

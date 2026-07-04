@@ -1,5 +1,12 @@
 <div id="train" class="muted{% if train.running %} busy{% endif %}"
      {% if train.running %}hx-get="/train-status" hx-trigger="every 1s" hx-swap="outerHTML"{% endif %}>
-  {% if train.running %}⏳ {% endif %}{{ train.msg }}
+  {% if train.running %}
+    <div class="train-line">⏳ {{ train.phase or train.msg }}
+      <span class="train-pct">{{ (train.frac * 100)|round|int }}%</span>
+    </div>
+    <progress class="train-bar" value="{{ train.frac }}" max="1"></progress>
+  {% else %}
+    {{ train.msg }}
+  {% endif %}
 </div>
 <div id="model-status" class="muted" hx-swap-oob="true">{{ model_status }}</div>

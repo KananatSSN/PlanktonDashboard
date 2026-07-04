@@ -1,0 +1,16 @@
+<p class="hint">
+  The queue holds the model's <b>most uncertain</b> predictions (smallest gap
+  between the top two classes), spread out by embedding so they aren't
+  near-duplicates. Assign the correct class, start a <b>new class</b> if none
+  fit, or <b>skip</b>. Retrain when done to fold the new labels in.
+</p>
+
+<div class="buttons">
+  <button hx-post="/al/build" hx-target="#al-card" hx-swap="innerHTML">Build queue</button>
+  <button class="alt" hx-post="/retrain" hx-target="#train" hx-swap="outerHTML">Retrain</button>
+  <button class="alt" hx-post="/save" hx-target="#savestatus" hx-swap="innerHTML">Save labels</button>
+  <span id="savestatus" class="muted"></span>
+</div>
+<div id="train" class="muted">{{ train.msg }}</div>
+
+<div id="al-card">{% include '_al_card.html' %}</div>

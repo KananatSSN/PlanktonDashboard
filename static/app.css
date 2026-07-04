@@ -136,3 +136,60 @@ table.conf th.rot > span { display: inline-block; transform: rotate(180deg); wri
 /* ── embedded Dash dashboard ──────────────────────────────────────────────── */
 .dash-frame { width: 100%; height: calc(100vh - 140px); border: 1px solid var(--line);
   border-radius: 8px; background: #fff; }
+
+/* ── active-learning queue ────────────────────────────────────────────────── */
+.al-progress { margin: 6px 0; }
+.al-item { display: flex; gap: 20px; align-items: flex-start; margin-top: 8px; }
+.al-img { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; padding: 8px; min-width: 200px; min-height: 200px;
+  display: flex; align-items: center; justify-content: center; }
+.al-img img { max-width: 320px; max-height: 320px; image-rendering: pixelated; }
+.al-side { flex: 1 1 auto; max-width: 420px; }
+.al-top { border-collapse: collapse; margin: 8px 0; }
+.al-top td { padding: 2px 10px 2px 0; }
+.al-top td.num { font-family: monospace; color: var(--muted); }
+.al-controls { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.al-done { font-size: 1.1em; margin: 10px 0; }
+
+/* ── class discovery (clusters) ───────────────────────────────────────────── */
+.cluster { border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+  margin: 12px 0; background: #fff; }
+.cluster-head { margin-bottom: 8px; }
+.rep-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.rep { position: relative; border: 2px solid transparent; border-radius: 6px;
+  cursor: pointer; background: var(--bg); padding: 2px; display: inline-flex;
+  align-items: center; justify-content: center; width: 78px; height: 78px; }
+.rep img { max-width: 72px; max-height: 72px; image-rendering: pixelated; }
+.rep input { position: absolute; top: 3px; left: 3px; z-index: 2; }
+.rep:has(input:checked) { border-color: var(--accent, #2b7); background: #eafaf1; }
+.rep.empty { color: var(--muted); }
+.cluster-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+
+/* ── manage classes ───────────────────────────────────────────────────────── */
+.manage-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+.manage-table th, .manage-table td { border-bottom: 1px solid var(--line);
+  padding: 6px 10px; text-align: left; vertical-align: middle; }
+.manage-table td.num { font-family: monospace; }
+.manage-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.manage-actions form.inline { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
+button.danger { color: #b00; }
+
+/* ── settings page ────────────────────────────────────────────────────────── */
+.settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px 20px; margin-top: 12px; max-width: 900px; }
+.setting { display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; border-bottom: 1px solid var(--line); padding: 6px 0; }
+.setting span { color: var(--muted); }
+.setting input[type="number"], .setting select { width: 130px; }
+.settings-actions { grid-column: 1 / -1; margin-top: 8px; }
+
+/* ── training progress + model explainer ──────────────────────────────────── */
+.train-line { display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; max-width: 480px; }
+.train-pct { font-family: monospace; }
+.train-bar { width: 100%; max-width: 480px; height: 14px; display: block;
+  margin-top: 4px; }
+.train-bar::-webkit-progress-bar { background: var(--bg); border-radius: 7px; }
+.train-bar::-webkit-progress-value { background: var(--accent, #2b7); border-radius: 7px; }
+.model-explain { border-left: 3px solid var(--accent, #2b7); background: #f6faf8;
+  padding: 8px 12px; margin: 8px 0; border-radius: 4px; font-size: 0.95em; }

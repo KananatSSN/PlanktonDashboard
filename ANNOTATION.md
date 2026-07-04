@@ -1,246 +1,322 @@
-# Plankton Annotation Tool — Features & Implementation
+# Plankton Annotation Tool
 
-A reCAPTCHA-style **active-labelling** web app for the plankton dataset. Pick a
-target class, click the grid images that contain it, and a MobileNetV3 classifier
-is fine-tuned on what you record. Built with **FastAPI + HTMX** (CPU-only PoC,
-runs in the `3dmodel` conda env).
+A human-in-the-loop web app for classifying plankton crops into an **open,
+growing set of classes**. Pick a target class, batch-accept the model's
+confident guesses or hunt its missed ones in a grid, resolve hard cases in an
+active-learning queue, and manage classes as they evolve. A **MobileNetV3 /
+torchvision** classifier trains on your labels in the background — with
+aggressive augmentation — while you keep annotating.
 
-Run:
+Built with **FastAPI + HTMX**, backed by **SQLite**. CPU-only; runs in the
+`3dmodel` conda env.
+
 ```powershell
 & "C:/Users/acer/anaconda3/envs/3dmodel/python.exe" annotate_server.py
 ```
-→ http://127.0.0.1:8051  (the Dash dashboard stays on 8050)
+→ http://127.0.0.1:8051  (the embedded Dash dashboard is under `/dashboard/`)
+
+First run: register datasets and import any existing labels, then bootstrap the
+model from the **Annotate** tab (Train Base Model):
+
+```powershell
+python annotate_db.py sync      # register datasets, migrate existing LC_ labels
+```
 
 ---
 
-## 1. File layout
+## 1. Architecture at a glance
+
+```
+ dataset folders (data/*/)
+        │  DatasetSource adapter (annotate_data.py)   ← format-agnostic
+        ▼
+   SQLite metadata store  (annotate_db.py)            ← source of truth for labels
+        │
+        ▼   the Session (annotate_session.py) drives every workflow:
+   ┌──────────────┬───────────────┬────────────────┬──────────────────┐
+   │ Grid review  │ Hard-case grid│ Active learning│ Manage classes   │
+   │ (weak labels)│ (human labels)│ (uncertain+div)│ rename/merge/del │
+   └──────────────┴───────────────┴────────────────┴──────────────────┘
+        │                    ▲
+        ▼                    │ background train-on-copy (RandAugment),
+   MobileNet / torchvision ──┘ manual or auto every N labels
+   (annotate_model.py)
+        │
+        ▼   export
+   LC_ columns written back to LabelChecker*.csv
+```
+
+The model scores a **sample** of the unlabelled pool each grid build (crops are
+loaded and run through the CNN). Training happens on a **copy** of the model in a
+background thread; the fresh model is swapped in atomically when ready, so
+annotation never blocks on training.
+
+---
+
+## 2. File layout
 
 | File | Responsibility |
 |------|----------------|
-| `annotate_server.py` | FastAPI app + HTMX endpoints; owns the single `Session`. |
-| `annotate_core.py`   | Framework-agnostic logic: data access, label bookkeeping, grid generation, health metrics, and the stateful `Session`. |
-| `annotate_model.py`  | `PlanktonClassifier` — MobileNetV3-Small wrapper (predict / fine-tune / checkpoint) + the `RECIPE`. |
-| `dashboard.py`       | The Plotly **Dash** feature-scatter / image / binary tool, mounted under FastAPI as the **Dashboard** tab (also runs standalone on 8050). |
-| `templates/`         | Jinja2 templates and HTMX fragments. |
-| `static/`            | `app.css` and vendored `htmx.min.js`. |
-| `models/`            | Saved checkpoint `annotate_mobilenetv3.pt` (gitignored). |
-
-Data is read exactly like `dashboard.py`: each row of a `LabelChecker*.csv` is a
-crop (`ImageX/Y/W/H`) inside a `CollageFile` TIFF.
-
----
-
-## 2. Labelling data model (new `LC_` columns)
-
-Labels are written into new columns of the `LabelChecker*.csv`:
-
-| Column | Meaning |
-|--------|---------|
-| `LC_Label`    | Positive class assigned when a crop is **clicked** (a hard one-hot). |
-| `LC_Excluded` | Pipe-separated classes **ruled out** for a crop — the zeros of a "reverse one-hot". Pressing **Regenerate** adds the target to every shown crop. |
-| `LC_Seen`     | `1` once a crop has appeared in a grid. |
-| `LC_Probs`    | JSON `{class: prob}` — the model's full predicted-probability array, written whenever a crop is scored/shown. Also drives the hover tooltip (top-8 `class: prob`). |
-
-Empty cells round-trip through CSV as `NaN`; `ensure_lc_columns()` normalises them
-back to `""`/`0` on load so every reader can assume plain strings/ints.
-
-**Reverse one-hot idea:** an unlabelled crop starts with all classes possible.
-Each round you work on class `x` and leave a crop unclicked, `x` is removed from
-its candidate set (`LC_Excluded += x`). A positive click collapses it to a single
-class (`LC_Label = x`).
-
-**Pool for target `x`** (`get_pool`): rows with no positive label **and** `x` not
-already in `LC_Excluded` — i.e. "unseen for x".
+| `annotate_server.py` | FastAPI app, HTMX endpoints, mounts the Dash dashboard. Owns the single `Session`. |
+| `annotate_session.py`| The stateful, DB-backed `Session`: grids, AL queue, class management, background training, export, health. |
+| `annotate_data.py`   | `DatasetSource` abstraction + `LabelCheckerSource`, `ImageFolderSource`, discovery. |
+| `annotate_db.py`     | SQLite schema, sync/migrate/export, label ops, class-management ops. CLI. |
+| `annotate_model.py`  | `PlanktonClassifier` — any torchvision backbone, RandAugment training, penultimate features. |
+| `annotate_settings.py`| JSON-persisted training/grid settings + form field metadata. |
+| `annotate_core.py`   | Legacy DataFrame helpers still used for base64 / tooltips. |
+| `dashboard.py`       | The Plotly Dash feature-scatter tool, mounted under `/dashboard/`. |
+| `templates/`         | Jinja2 + HTMX fragments (one `_tab_*` + body per tab). |
+| `static/`            | `app.css`, vendored `htmx.min.js`. |
+| `models/`            | `model_<backbone>.pt` checkpoint (gitignored). |
+| `annotate.db`        | SQLite store (gitignored). |
+| `annotate_settings.json` | Saved settings (gitignored; regenerated from defaults). |
+| `data/<ds>/.dataset_id` | Stable identity marker (see §5). |
 
 ---
 
-## 3. Grid generation & x-minimisation
+## 3. Data abstraction (`annotate_data.py`)
 
-The grid deliberately **minimises** images the model already thinks are `x`, so
-you surface the model's *missed* positives (hard cases) rather than re-confirming
-what it already knows.
+The real deployment will have **many dataset folders**, and future sources will
+**not always be CSV + TIFF**. All image/metadata access goes through:
 
-`score_pool(target, conf_skip)`:
-1. Sample up to `MAX_POOL = 256` rows from the pool for `x`.
-2. Load crops (caching each collage TIFF once) and run `predict_proba`.
-3. **Drop** rows where `max P(any class) ≥ conf_skip` (default **0.95**) — already
-   "known" to the model, not worth a label.
-4. Rank the rest by **ascending `P(x)`** (least-likely-x first).
-
-`build_grid(cells, threshold, conf_skip)`:
-- Takes the lowest-`P(x)` rows as the `m × n` grid.
-- The remaining ranked candidates become a **reserve** queue (`[[row, p], …]`,
-  images loaded on demand) used to replace clicked tiles. Reserve prefers rows
-  with `P(x) < threshold`.
-- Status line, e.g.:
-  `Pool 256 scored · 128 high-conf (≥0.95) skipped · 3 predicted-<x> (≥0.5) kept out · grid 6/6 · reserve 122`
-
-`next_replacement(...)`: pops the next reserve tile (skipping ones already shown),
-re-scoring the pool only when the reserve empties (and never while training).
-
-### Tunable thresholds (per-grid, in the UI)
-- **Rows (m) × Cols (n)** — grid shape, 1–8 each.
-- **Remove if P(x) ≥ threshold** (default 0.5) — reserve cutoff / "kept out" count.
-- **Skip if max P(any) ≥ conf_skip** (default 0.95) — high-confidence skip rule.
-
----
-
-## 4. Interaction model (HTMX)
-
-- **Click a tile** → `POST /click`. The crop is labelled `LC_Label = x`
-  immediately and the server returns **only that one tile** (`hx-swap="outerHTML"`
-  on the tile) plus out-of-band status updates. No full-grid repaint — a single
-  DOM node changes, which is what makes swaps instant and flicker-free.
-- **Regenerate (none are target)** → `POST /regenerate`: marks every shown crop
-  `not-x` (`LC_Excluded += x`), saves, and draws a fresh grid.
-- **New grid** → `POST /build`: rebuild without committing negatives (used when
-  switching target/size/thresholds).
-- **Update Model** / **Train Base Model** → background training (see §6).
-- **Save labels** → `POST /save`: flush to disk.
-
-Grid state (shown rows, images, reserve, target, m/n, thresholds, session
-positive count) lives **server-side** in the `Session`, so switching tabs and
-back preserves the current grid.
-
----
-
-## 5. Model (MobileNetV3-Small, PyTorch, CPU)
-
-`PlanktonClassifier` in `annotate_model.py`:
-- Backbone `torchvision.mobilenet_v3_small` (ImageNet weights), final linear layer
-  replaced with `num_classes` (the sorted unique `LabelPredicted` values, 20).
-- `predict_proba(crops)` → softmax probabilities; resizes crops to `img_size`,
-  ImageNet-normalised, batched.
-- `fit(crops, labels, epochs)` → warm-start training; by default only the
-  classifier head is trainable (`freeze_backbone`) for speed on CPU.
-- `save()/load()` checkpoint to `models/annotate_mobilenetv3.pt` (state dict +
-  class list + trained flag). A class-set mismatch ignores a stale checkpoint.
-
-### `RECIPE` (top of `annotate_model.py`)
-```
-img_size=160, batch_size=32, lr=1e-3, weight_decay=1e-4,
-freeze_backbone=True, finetune_epochs=4, base_epochs=3, base_max_samples=1200
+```python
+class DatasetSource(ABC):
+    dataset_id: str                       # stable identity (from a marker file)
+    def list_items() -> list[ItemRef]     # (item_key, meta) per crop
+    def load_images(keys) -> {key: ndarray}
+    def initial_classes() -> list[str]    # seed taxonomy, may be []
+    def export_labels(labels) -> int      # write-back hook (may no-op)
 ```
 
-### Two label sources for training
-- **Fine-tune (Update Model)** — `collect_training`: positive `LC_Label` rows use
-  their class; reverse-one-hot rows (exclusions, no positive) get a **random class
-  from those not excluded**.
-- **Base train (Train Base Model)** — `collect_base`: bootstrap on the existing
-  `LabelPredicted` column (subsampled to `base_max_samples`) so predictions are
-  useful from round one. Click this first.
+Two implementations ship: **`LabelCheckerSource`** (FlowCam `LabelChecker*.csv` +
+collage TIFF crops; `item_key` = the row's `Uuid`; seeds classes from
+`LabelPredicted`; exports `LC_` columns) and **`ImageFolderSource`** (a plain
+folder of image files; `item_key` = relative path; read-only).
+`discover_datasets()` scans the data root (`PLANKTON_DATA_DIR`, default `data/`)
+and returns one source per subfolder. The pool and classes span **all**
+registered datasets.
+
+### 3.1 Currently supported formats
+
+| Format | Detected by | `item_key` | Seed classes | Export |
+|--------|-------------|-----------|--------------|--------|
+| **LabelChecker CSV + TIFF** | a `LabelChecker*.csv` | `Uuid` (else `CollageFile\|X\|Y\|W\|H`) | `LabelPredicted` values | `LC_` columns |
+| **Image folder** | any image file, no CSV | relative path | subfolder names | none (read-only) |
+
+### 3.2 Adding a new format
+
+Nothing downstream knows the on-disk format — it lives only in the source
+subclass. To add one:
+
+1. **Subclass `DatasetSource`** and implement `list_items()` (stable,
+   content-derived `item_key`s — never row numbers) and `load_images()` (RGB
+   uint8 arrays).
+2. **Optional:** `initial_classes()`, `export_labels()` (set
+   `supports_export=True`; atomic `.tmp`+`os.replace`, touch only your label
+   fields), `refresh()`.
+3. **Register** it in `open_dataset()` with a detection rule.
+4. **Optional migration:** expose existing labels in item meta as
+   `lc_label`/`lc_excluded`/`lc_seen`/`lc_probs` and `annotate_db.migrate_lc`
+   imports them on `sync`.
+
+Then `python annotate_db.py sync` — the new dataset joins the same pool and every
+workflow with no other code changes. `ImageFolderSource` (~15 lines) is the
+reference for a minimal read-only adapter.
 
 ---
 
-## 6. Background training
+## 4. Portability: moving / renaming folders
 
-Training runs on a **daemon thread** (`Session._train_async`) so the server stays
-responsive:
-- A `train = {"running": bool, "msg": str}` flag drives an HTMX status fragment
-  that polls `GET /train-status` every 1s and stops when done.
-- Grid (re)builds are blocked while training; tile replacement won't re-score the
-  pool during training (`allow_refill=False`) to avoid concurrent model access.
-- `clf.lock` serialises the actual `fit`, and the checkpoint is saved after.
-
----
-
-## 7. Persistence
-
-- The active dataset's DataFrame is kept **in memory** and mutated per click.
-- It is flushed to disk only on **Regenerate**, **Save**, after **training**, and
-  on **exit** (`atexit`) — never a full rewrite on every click.
-- Writes are **atomic**: `to_csv` to a `.csv.tmp` then `os.replace` onto the
-  target (safe on the same volume).
-- `save()` merges **only the `LC_` columns** onto a fresh on-disk read, so columns
-  written by the embedded Dashboard (e.g. `BioVolume`) are not clobbered.
-- `model_status()` shows an `unsaved: yes/no` flag.
-
-> The server loads the first `LabelChecker*.csv` it finds by default and writes
-> labels back to it. Work on a copy to avoid touching originals.
+1. **No absolute paths in the DB** — only dataset-relative `item_key`s; the data
+   root is `PLANKTON_DATA_DIR` (default `data/`). *Move `data/` → change one env
+   var.*
+2. **`dataset_id` is a `.dataset_id` marker (UUID)**, not the folder name.
+   *Rename/move a folder → labels re-attach automatically.*
+3. **The CSV export is a backup** — labels also live in the `LC_` columns, so the
+   DB can be rebuilt from the CSVs (`annotate_db.py sync`).
 
 ---
 
-## 8. Tabs
+## 5. Metadata store (`annotate_db.py`)
 
-HTMX swaps each tab body into `#main`; a persistent top nav (`#tabnav`) is updated
-out-of-band to show the active tab.
+SQLite is the working source of truth. Schema:
 
-### Annotate
-The labelling grid, controls, action buttons, and status lines.
+```
+datasets(id, name, source_type, registered_at, last_synced_at)
+images(id, dataset_id, item_key, predicted,
+       label, label_source ∈ {none,human,weak,pseudo}, confidence,
+       status ∈ {unlabeled,seed,reviewed,rejected},
+       excluded (pipe-joined ruled-out classes), seen, probs (JSON),
+       cluster_id, embedding_row, created_at, updated_at,
+       UNIQUE(dataset_id, item_key))
+classes(id, name, origin ∈ {seeded,discovered,manual}, created_at)
+labeling_events(id, image_id, class_name,
+       action ∈ {accept,reject,relabel,exclude,migrate}, round, annotator, created_at)
+```
 
-### Dataset Health (`dataset_health`)
-No model needed. Summary cards (total / classes / labelled / reverse-one-hot /
-seen / untouched) plus a per-class table: original `LabelPredicted` count + share,
-human positives, times ruled-out, remaining pool, with a distribution bar.
+(`cluster_id` / `embedding_row` are legacy columns, currently unused.)
 
-### Model Health (`model_health`)
-Scores the **current model** against your human `LC_Label` positives (chosen
-ground truth):
-- Overall **accuracy** and **macro-F1**.
-- Per-class **precision / recall / F1 / support** (computed without sklearn).
-- **Confusion matrix** (rows = true `LC_Label`, cols = predicted).
-- Evaluates only labelled rows, capped at `EVAL_MAX = 800` crops for
-  responsiveness; shows a friendly empty state before any labels exist and a
-  notice if training is in progress.
-
-### Dashboard (embedded Dash)
-The existing `dashboard.py` (Plotly Dash: feature scatter, click-to-view image,
-binary/threshold tools) is **mounted inside the same FastAPI process** — no second
-server or port:
-
-- `annotate_server.py` sets `DASH_URL_PREFIX="/dashboard/"` **before** importing
-  `dashboard`, so Dash builds its asset/callback URLs under that prefix; then
-  `app.mount("/dashboard", WSGIMiddleware(dashboard.app.server))` (via `a2wsgi`)
-  exposes the Flask/WSGI Dash app.
-- `dashboard.py` reads that env var at app-creation and passes
-  `requests_pathname_prefix`; unset when run standalone, so `python dashboard.py`
-  still works on 8050.
-- The **Dashboard** tab body is just an `<iframe src="/dashboard/">`.
-
-**Shared-CSV safety:** the Dashboard writes columns like `BioVolume` straight to
-the CSV, while the annotation Session holds an in-memory copy. To avoid clobbering
-those, `Session.save()` re-reads the on-disk CSV and overwrites **only the `LC_`
-columns** (falling back to a full dump if the row count drifts).
+- **`sync_source`** registers a dataset and upserts items (idempotent);
+  **`migrate_lc`** imports existing `LC_` labels; **`export_source`** writes them
+  back. Reverse-one-hot exclusions round-trip unchanged.
+- The connection is opened `check_same_thread=False` and every request handler
+  holds `Session.lock` (an `RLock`); the background training thread never touches
+  the DB (its data is gathered under the lock before the thread starts).
 
 ---
 
-## 9. HTTP endpoints
+## 6. The model (`annotate_model.py`)
+
+`PlanktonClassifier` wraps **any of the ~80 torchvision classification
+backbones** (`available_backbones()`), default **MobileNetV3-Small**.
+`_replace_classifier` swaps the final head generically (the `Linear` head of
+ResNet / MobileNet / EfficientNet / ConvNeXt / ViT / DenseNet / VGG, and
+SqueezeNet's `Conv2d`). Checkpoint: `models/model_<backbone>.pt`, tagged with the
+backbone so a mismatch is rejected on load.
+
+- **Aggressive augmentation** — training uses `RandomResizedCrop` + **RandAugment**
+  (`num_ops` random operations of `magnitude` strength, from ~14: rotate, shear,
+  translate, colour, contrast, brightness, sharpness, posterize, solarize,
+  equalize, …) + flips. Controlled from Settings.
+- **`predict_proba(crops)`** scores raw crops; **`features(crops)`** returns the
+  penultimate embedding (via a forward hook on the head) for active-learning
+  diversity; **`fit(crops, labels, …)`** trains with the given recipe.
+- Two training entry points: **Base train** (bootstrap on the `predicted` /
+  `LabelPredicted` column) and **Retrain** (on accumulated `human`+`weak` labels).
+
+### Background training (train-on-copy)
+
+Training runs in a daemon thread on a **fresh classifier**; when it finishes, the
+Session swaps `self.clf` under the lock. Grid scoring keeps using the current
+model until the swap, so **annotation continues during training**. Retraining
+fires manually (Retrain button) or **automatically after every `retrain_every`
+new labels** (Settings; `0` disables). A `train` status fragment polls
+`GET /train-status`.
+
+---
+
+## 7. The tabs / workflows
+
+HTMX swaps each tab body into `#main`; a persistent nav is updated out-of-band.
+
+### Annotate — two grid modes
+Both score a random **sample** of the unlabelled pool (`max_pool` crops) with the
+model and share one tile/reserve mechanic. Grid state lives server-side.
+
+- **Review** (throughput) — only crops the model **predicts as the target**
+  (argmax = x), highest-confidence first. It scans the pool in `max_pool`-sized
+  chunks (up to a budget) to gather enough for the grid **plus a deep reserve**,
+  so every tile — original or reject-replacement — is a genuine x-candidate and
+  **Accept all shown** stays valid batch after batch. Assume they're all correct:
+  **click only the tiles that are NOT the target** to reject them (records an
+  exclusion, swaps in the next x-candidate); **Accept all shown** labels the rest
+  as `weak` and rebuilds; **Reject all** excludes and rebuilds. If the model
+  currently predicts none of the pool as x, it says so — Retrain to surface more.
+- **Hard-case** — the crops the model is **least confident** about (lowest P(x))
+  from a random `max_pool` sample, hiding ones it already predicts confidently
+  ("Trust the model when P(any) ≥"). Here **click the tiles that ARE the target**
+  to label them `human`.
+
+The Annotate tab states what the model does and, per mode, exactly which tiles
+to click. Training shows a live **progress bar** (phase + epoch + % ) that polls
+`/train-status` while a background train runs.
+
+Controls: target class, mode, rows m × cols n (up to `grid_max`, default 20),
+and **Trust the model when P(any) ≥** (hard-case only) — crops the model already
+predicts that confidently (any class) are hidden, so you review only its
+uncertain/missed ones.
+
+### Active Learning
+`Build queue` scores a pool sample, ranks by **margin** (top-1 − top-2 softmax;
+smallest = most uncertain), keeps the top `al_k_uncertain`, then does
+**farthest-point sampling over the model's penultimate features** for diversity.
+Review one-by-one: image + top-5 predictions + class dropdown, with **Assign**
+(human), **Create & assign** a new class, or **Skip**.
+
+### Manage Classes
+A per-class table (name, origin, labelled count) with **Rename** (onto an existing
+name → merges), **Merge into**, and **Delete** (re-pools the images as
+unlabelled). Exclusion sets stay consistent; every change is logged to
+`labeling_events`.
+
+### Settings
+Edits `annotate_settings.json` and applies live. Fields:
+
+| Setting | Meaning |
+|---|---|
+| `backbone` | torchvision model to train (changing it resets the model) |
+| `img_size` | input crop size (changing it resets the model) |
+| `freeze_backbone` | train head only (fast) vs whole network |
+| `randaug_ops` / `randaug_magnitude` | RandAugment strength (`0` ops disables) |
+| `lr` / `batch_size` / `weight_decay` | optimiser |
+| `finetune_epochs` / `base_epochs` / `base_max_samples` | training length |
+| `retrain_every` | auto-retrain after N new labels (`0` = manual only) |
+| `max_pool` | crops scored per grid build |
+| `grid_max` | row/column cap in the UI |
+| `al_sample` / `al_k_uncertain` / `al_queue_size` | active-learning queue |
+
+### Dataset Health
+Class distribution and labelling progress from the DB (no model needed).
+
+### Model Health
+Scores the model against `human` labels (loads those crops, capped at
+`EVAL_MAX=600`): accuracy, macro-F1, per-class precision/recall/F1, confusion
+matrix.
+
+### Dashboard
+The existing Plotly Dash tool mounted in-process under `/dashboard/` via
+`a2wsgi`. The export writes only `LC_` columns, so Dash-written columns (e.g.
+BioVolume) are preserved.
+
+---
+
+## 8. HTTP endpoints
 
 | Method & path | Purpose |
 |---|---|
-| `GET /` | Full page (Annotate tab). |
-| `GET /tab/{annotate,dataset,model,dashboard}` | Tab body + OOB nav. Read-only. |
-| `/dashboard/*` | The mounted Dash app (its own pages, assets, and callbacks). |
-| `POST /dataset` | Switch dataset; returns refreshed target `<option>`s. |
-| `POST /build` | Build grid (no negative commit). |
-| `POST /regenerate` | Commit shown as not-x, then rebuild. |
-| `POST /click` | Label clicked tile positive; return the single replacement tile. |
-| `POST /update-model` | Start background fine-tune. |
-| `POST /train-base` | Start background bootstrap train. |
-| `GET /train-status` | Polled training-status fragment. |
-| `POST /save` | Flush labels to CSV. |
-
-Form params for build/regenerate: `target, rows, cols, threshold, conf_skip`.
+| `GET /` · `GET /tab/{annotate,active,manage,settings,dataset,model,dashboard}` | Page / tab bodies. |
+| `POST /dataset` | Switch dataset (by `dataset_id`). |
+| `POST /build` · `/click` · `/accept-all` · `/reject-all` | Grid build + tile actions. |
+| `POST /train-base` · `/retrain` · `GET /train-status` | Background training + poll. |
+| `POST /al/build` · `/al/assign` · `/al/new` · `/al/skip` | Active-learning queue. |
+| `POST /manage/rename` · `/merge` · `/delete` | Class management. |
+| `POST /settings/save` | Save settings. |
+| `POST /save` | Export labels to the CSV. |
+| `/dashboard/*` | The mounted Dash app. |
 
 ---
 
-## 10. Key constants
+## 9. Command-line tools
 
-| Constant | Location | Default |
-|---|---|---|
-| `MAX_POOL` | `annotate_core.py` | 256 (crops scored per grid) |
-| `EVAL_MAX` | `annotate_core.py` | 800 (crops scored for Model Health) |
-| `conf_skip` | `Session` / UI | 0.95 |
-| `threshold` | `Session` / UI | 0.5 |
-| grid `m × n` | `Session` / UI | 3 × 3 (1–8 each) |
-| `RECIPE` | `annotate_model.py` | see §5 |
-| port | `annotate_server.py` | 8051 |
+```powershell
+python annotate_db.py sync      # discover datasets, register, upsert items, migrate LC_ labels
+python annotate_db.py export    # write DB label state back to LC_ columns
+python annotate_db.py status    # DB summary (counts, classes, events)
+```
+
+Run `sync` once per new dataset folder; it is idempotent. There is no separate
+embedding step — the model works directly on crops.
 
 ---
 
-## 11. Dependencies (in the `3dmodel` conda env)
+## 10. Dependencies (`3dmodel` conda env, Python 3.12, CPU)
 
-`torch`, `torchvision`, `fastapi`, `uvicorn`, `jinja2`, `python-multipart`,
-`a2wsgi` (mounts the Dash app), plus `dash`, `plotly`, `scipy`, `scikit-image`
-for the Dashboard tab (+ `httpx` for tests). GPU is unavailable — everything runs
-on CPU.
+`torch`, `torchvision` (the classifier + backbones), `fastapi`, `uvicorn`,
+`jinja2`, `python-multipart`, `a2wsgi` (mounts Dash), plus `dash`, `plotly`,
+`scipy`, `scikit-image`, `pandas`, `Pillow` for the Dashboard and CSV I/O. No
+DINOv2 / hdbscan / umap.
+
+> **OpenMP note:** torch + numpy-MKL in one process can trip `OMP: Error #15` on
+> this env. `annotate_server.py` sets `KMP_DUPLICATE_LIB_OK=TRUE` before importing
+> torch; set the same env var for any script that mixes them.
+
+---
+
+## 11. Persistence & safety
+
+- Labels are written to the DB on each action (the source of truth).
+- **Save** exports the DB's `LC_` columns back onto a fresh on-disk read of the
+  CSV (atomic `.tmp` + `os.replace`), touching **only** `LC_Label`,
+  `LC_Excluded`, `LC_Seen`, `LC_Probs` — other columns are preserved.
+- The DB is rebuildable from the CSVs; `models/`, `annotate.db*`,
+  `annotate_settings.json` are gitignored.

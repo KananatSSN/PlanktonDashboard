@@ -1,0 +1,46 @@
+<p class="hint">
+  Merge duplicates, rename, or delete a class (its images return to the
+  unlabelled pool). Retrain afterwards so the model reflects the new class set.
+  Every change is logged.
+</p>
+
+<datalist id="classlist-m">
+  {% for c in classes_table %}<option value="{{ c.name }}">{% endfor %}
+</datalist>
+
+{% if manage_status %}<div class="muted">{{ manage_status }}</div>{% endif %}
+
+<table class="manage-table">
+  <thead><tr><th>Class</th><th>Origin</th><th>Labelled</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for c in classes_table %}
+    <tr>
+      <td><b>{{ c.name }}</b></td>
+      <td class="muted">{{ c.origin }}</td>
+      <td class="num">{{ c.count }}</td>
+      <td class="manage-actions">
+        <form class="inline">
+          <input type="hidden" name="old" value="{{ c.name }}">
+          <input type="text" name="new" placeholder="new name" size="12">
+          <button hx-post="/manage/rename" hx-include="closest form"
+                  hx-target="#manage-wrap" hx-swap="innerHTML">Rename</button>
+        </form>
+        <form class="inline">
+          <input type="hidden" name="src" value="{{ c.name }}">
+          <select name="dst">
+            {% for o in classes_table if o.name != c.name %}
+              <option value="{{ o.name }}">{{ o.name }}</option>
+            {% endfor %}
+          </select>
+          <button hx-post="/manage/merge" hx-include="closest form"
+                  hx-target="#manage-wrap" hx-swap="innerHTML">Merge into</button>
+        </form>
+        <button class="alt danger" hx-post="/manage/delete"
+                hx-vals='{"name": "{{ c.name }}"}'
+                hx-confirm="Delete '{{ c.name }}' and re-pool its {{ c.count }} images?"
+                hx-target="#manage-wrap" hx-swap="innerHTML">Delete</button>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
